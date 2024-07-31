@@ -1,15 +1,37 @@
-//! By convention, main.zig is where your main function lives in the case that
-//! you are building an executable. If you are making a library, the convention
-//! is to delete this file and start with root.zig instead.
 const c = @cImport({
     @cInclude("SDL2/SDL.h");
 });
 const std = @import("std");
+const emu = @import("chip8.zig");
 
 var texture: ?*c.SDL_Texture = null;
 var rnd = std.Random.DefaultPrng.init(64);
 
 pub fn main() !void {
+    var chip8: emu = .{};
+    chip8.reset();
+    chip8.step();
+    chip8.step();
+    chip8.step();
+
+    // const op: u16 = 0x31AB;
+    // std.debug.print("Op Code: {X}\n", .{op});
+    // const x: u4 = (op & 0xF000) >> 12;
+    // std.debug.print("x: {X}\n", .{x});
+    // const y: u4 = (op & 0x0F00) >> 8;
+    // std.debug.print("y: {X}\n", .{y});
+    // const a: u4 = (op & 0x00F0) >> 4;
+    // std.debug.print("a: {X}\n", .{a});
+    // const b: u4 = op & 0x000F;
+    // std.debug.print("b: {X}\n", .{b});
+
+    // const xy: u8 = (op & 0xFF00) >> 8;
+    // std.debug.print("xy: {X}\n", .{xy});
+    // const ab: u8 = (op & 0x00FF);
+    // std.debug.print("ab: {X}\n", .{ab});
+    // const yab: u12 = (op & 0x0FFF);
+    // std.debug.print("yab: {X}\n", .{yab});
+
     std.debug.print("Starting SDL2...\n", .{});
     if (c.SDL_Init(c.SDL_INIT_VIDEO) != 0) {
         c.SDL_Log("Unable to initialize SDL: %s", c.SDL_GetError());
@@ -35,7 +57,7 @@ pub fn main() !void {
     };
     defer c.SDL_DestroyTexture(texture);
 
-    var quit = false;
+    var quit = true;
     while (!quit) {
         var event: c.SDL_Event = undefined;
         while (c.SDL_PollEvent(&event) != 0) {
@@ -83,17 +105,4 @@ fn writeTexture() void {
         }
     }
     c.SDL_UnlockTexture(texture);
-}
-
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // Try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
-}
-
-test "fuzz example" {
-    // Try passing `--fuzz` to `zig build` and see if it manages to fail this test case!
-    const input_bytes = std.testing.fuzzInput(.{});
-    try std.testing.expect(!std.mem.eql(u8, "canyoufindme", input_bytes));
 }
