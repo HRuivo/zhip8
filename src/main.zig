@@ -19,11 +19,13 @@ pub fn main() !void {
     cpu.v[2] = 0;
     cpu.i = 0x0200 + 0x0020;
 
-    cpu.memWrite2(0x0200 + 0x0000, 0x31BC);
-    cpu.memWrite2(0x0200 + 0x0002, 0x00EE);
+    cpu.memWrite2(0x0200 + 0x0000, 0x0000);
+    cpu.memWrite2(0x0200 + 0x0002, 0x0000);
     cpu.memWrite2(0x0200 + 0x0004, 0x00E0);
     cpu.memWrite2(0x0200 + 0x0006, 0xD126);
     cpu.memWrite2(0x0200 + 0x0008, 0xD12E);
+
+    cpu.memWrite2(0x0200 + 0x000a, 0x0000);
 
     cpu.memWrite2(0x0200 + 0x0020, 0xc3bd);
     cpu.memWrite2(0x0200 + 0x0022, 0x8991);
@@ -44,6 +46,8 @@ pub fn main() !void {
     cpu.v[1] = 10;
     cpu.v[2] = 10;
     cpu.i = 0x0200 + 0x0026;
+    cpu.step();
+    cpu.step();
     cpu.step();
 
     std.debug.print("Starting SDL2...\n", .{});

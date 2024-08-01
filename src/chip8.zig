@@ -31,7 +31,9 @@ const Operation = union(enum) {
     VxLeftShift: u4,
     VySubVx: struct { dest: u4, source: u4 },
     SetI: u16,
-    Draw: u16,
+    JumpV0PlusNNN: u16,
+    VxRandAndNN: struct { index: u4, nn: u8 },
+    Draw: struct { x: u4, y: u4, height: u4 },
 };
 
 const BitMask = enum(u16) {
@@ -243,8 +245,13 @@ fn decode(op: u16) Operation {
         },
         // DRAW
         0xD => {
-            const nnn: u16 = op & 0x0FFF;
-            return Operation{ .Draw = nnn };
+            return Operation{
+                .Draw = .{
+                    .x = y,
+                    .y = a,
+                    .height = b,
+                },
+            };
         },
         else => {
             std.debug.print("unimplemented op code\n", .{});
@@ -280,15 +287,10 @@ fn execute(self: *@This(), op: Operation) void {
                 self.pc += 2;
             }
         },
-        Operation.Draw => |nnn| {
-            std.debug.print("Drawing... {X}\n", .{nnn});
-            const x1: u4 = @truncate(BitMask.maskBits(nnn, .Mask0F00) >> 8);
-            const x2: u4 = @truncate(BitMask.maskBits(nnn, .Mask00F0) >> 4);
-            const x3: u4 = @truncate(BitMask.maskBits(nnn, .Mask000F));
-
-            const x_coord = self.v[x1];
-            const y_coord = self.v[x2];
-            const num_rows = x3;
+        Operation.Draw => |data| {
+            const x_coord = self.v[data.x];
+            const y_coord = self.v[data.y];
+            const num_rows = data.height;
 
             var y: u8 = 0;
             while (y < num_rows) : (y += 1) {
