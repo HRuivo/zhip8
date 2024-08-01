@@ -17,11 +17,19 @@ const Operation = union(enum) {
     Call: u16,
     SkipVxEqualNN: struct { index: u4, nn: u8 },
     SkipVxNotEqualNN: struct { index: u4, nn: u8 },
-    SkipVxEqualVy: struct { index: u4, nn: u8 },
-    SkipVxNotEqualVy: struct { index: u4, nn: u8 },
-    SetRegister: struct { index: u4, nn: u8 },
+    SkipVxEqualVy: struct { dest: u4, source: u4 },
+    SkipVxNotEqualVy: struct { dest: u4, source: u4 },
+    VxNN: struct { index: u4, nn: u8 },
     Add: struct { index: u4, nn: u8 },
-    CopyRegister: struct { dest: u4, source: u4 },
+    VxVy: struct { dest: u4, source: u4 },
+    VxOrVy: struct { dest: u4, source: u4 },
+    VxAndVy: struct { dest: u4, source: u4 },
+    VxXorVy: struct { dest: u4, source: u4 },
+    VxAddVy: struct { dest: u4, source: u4 },
+    VxSubVy: struct { dest: u4, source: u4 },
+    VxRightShift: u4,
+    VxLeftShift: u4,
+    VySubVx: struct { dest: u4, source: u4 },
     SetI: u16,
     Draw: u16,
 };
@@ -99,8 +107,8 @@ fn fetch(self: *@This()) Operation {
 fn decode(op: u16) Operation {
     const x: u4 = @truncate((op & 0xF000) >> 12);
     const y: u4 = @truncate((op & 0x0F00) >> 8);
-    //const a = (op & 0x00F0) >> 4;
-    //const b = (op & 0x000F);
+    const a: u4 = @truncate((op & 0x00F0) >> 4);
+    const b: u4 = @truncate((op & 0x000F));
     const nn: u8 = @truncate((op & 0x00FF));
 
     switch (x) {
@@ -146,9 +154,91 @@ fn decode(op: u16) Operation {
         0x5 => {
             return Operation{
                 .SkipVxEqualVy = .{
+                    .dest = y,
+                    .source = a,
+                },
+            };
+        },
+        // VX = NN
+        0x6 => {
+            return Operation{
+                .VxNN = .{
                     .index = y,
                     .nn = nn,
                 },
+            };
+        },
+        // VX += NN
+        0x7 => {
+            return Operation{
+                .Add = .{
+                    .index = y,
+                    .nn = nn,
+                },
+            };
+        },
+        0x8 => {
+            switch (b) {
+                // VX = VY
+                0x0 => {
+                    return Operation{
+                        .VxVy = .{ .dest = y, .source = a },
+                    };
+                },
+                // VX |= VY
+                0x1 => {
+                    return Operation{
+                        .VxOrVy = .{ .dest = y, .source = a },
+                    };
+                },
+                // VX &= VY
+                0x2 => {
+                    return Operation{
+                        .VxAndVy = .{ .dest = y, .source = a },
+                    };
+                },
+                // VX ^= VY
+                0x3 => {
+                    return Operation{
+                        .VxXorVy = .{ .dest = y, .source = a },
+                    };
+                },
+                // VX += VY
+                0x4 => {
+                    return Operation{
+                        .VxAddVy = .{ .dest = y, .source = a },
+                    };
+                },
+                // VX -= VY
+                0x5 => {
+                    return Operation{
+                        .VxSubVy = .{ .dest = y, .source = a },
+                    };
+                },
+                // VX >>= 1
+                0x6 => {
+                    return Operation{
+                        .VxRightShift = y,
+                    };
+                },
+                // VX = VY - VX
+                0x7 => {
+                    return Operation{
+                        .VySubVx = .{ .dest = y, .source = a },
+                    };
+                },
+                // VX <<= 1
+                0xE => {
+                    return Operation{
+                        .VxLeftShift = y,
+                    };
+                },
+                else => unreachable,
+            }
+        },
+        0x9 => {
+            return Operation{
+                .SkipVxNotEqualVy = .{ .dest = y, .source = a },
             };
         },
         // DRAW
