@@ -2,35 +2,49 @@ const c = @cImport({
     @cInclude("SDL2/SDL.h");
 });
 const std = @import("std");
-const emu = @import("chip8.zig");
+const Emu = @import("chip8.zig");
 
 var texture: ?*c.SDL_Texture = null;
 var rnd = std.Random.DefaultPrng.init(64);
 
 pub fn main() !void {
-    var chip8: emu = .{};
-    chip8.reset();
-    chip8.step();
-    chip8.step();
-    chip8.step();
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
 
-    // const op: u16 = 0x31AB;
-    // std.debug.print("Op Code: {X}\n", .{op});
-    // const x: u4 = (op & 0xF000) >> 12;
-    // std.debug.print("x: {X}\n", .{x});
-    // const y: u4 = (op & 0x0F00) >> 8;
-    // std.debug.print("y: {X}\n", .{y});
-    // const a: u4 = (op & 0x00F0) >> 4;
-    // std.debug.print("a: {X}\n", .{a});
-    // const b: u4 = op & 0x000F;
-    // std.debug.print("b: {X}\n", .{b});
+    var cpu = try allocator.create(Emu);
+    cpu.reset();
 
-    // const xy: u8 = (op & 0xFF00) >> 8;
-    // std.debug.print("xy: {X}\n", .{xy});
-    // const ab: u8 = (op & 0x00FF);
-    // std.debug.print("ab: {X}\n", .{ab});
-    // const yab: u12 = (op & 0x0FFF);
-    // std.debug.print("yab: {X}\n", .{yab});
+    cpu.v[1] = 0;
+    cpu.v[2] = 0;
+    cpu.i = 0x0200 + 0x0020;
+
+    cpu.memWrite2(0x0200 + 0x0000, 0x31BC);
+    cpu.memWrite2(0x0200 + 0x0002, 0x00EE);
+    cpu.memWrite2(0x0200 + 0x0004, 0x00E0);
+    cpu.memWrite2(0x0200 + 0x0006, 0xD126);
+    cpu.memWrite2(0x0200 + 0x0008, 0xD12E);
+
+    cpu.memWrite2(0x0200 + 0x0020, 0xc3bd);
+    cpu.memWrite2(0x0200 + 0x0022, 0x8991);
+    cpu.memWrite2(0x0200 + 0x0024, 0xbdc3);
+
+    cpu.memWrite2(0x0200 + 0x0026, 0x3c7e);
+    cpu.memWrite2(0x0200 + 0x0028, 0x7e5a);
+    cpu.memWrite2(0x0200 + 0x002a, 0x7e3c);
+    cpu.memWrite2(0x0200 + 0x002c, 0x016f);
+    cpu.memWrite2(0x0200 + 0x002e, 0xf6ba);
+    cpu.memWrite2(0x0200 + 0x0030, 0xbca2);
+    cpu.memWrite2(0x0200 + 0x0032, 0x2200);
+
+    cpu.step();
+    cpu.step();
+    cpu.step();
+    cpu.step();
+    cpu.v[1] = 10;
+    cpu.v[2] = 10;
+    cpu.i = 0x0200 + 0x0026;
+    cpu.step();
 
     std.debug.print("Starting SDL2...\n", .{});
     if (c.SDL_Init(c.SDL_INIT_VIDEO) != 0) {
@@ -57,7 +71,7 @@ pub fn main() !void {
     };
     defer c.SDL_DestroyTexture(texture);
 
-    var quit = true;
+    var quit = false;
     while (!quit) {
         var event: c.SDL_Event = undefined;
         while (c.SDL_PollEvent(&event) != 0) {
@@ -76,7 +90,7 @@ pub fn main() !void {
 
         _ = c.SDL_RenderClear(renderer);
 
-        writeTexture();
+        writeTexture(cpu);
 
         var dest = c.SDL_Rect{
             .x = 0,
@@ -91,7 +105,7 @@ pub fn main() !void {
     }
 }
 
-fn writeTexture() void {
+fn writeTexture(emu: *Emu) void {
     var bytes: ?[*]u32 = null;
     var pitch: c_int = 0;
     _ = c.SDL_LockTexture(texture, null, @ptrCast(&bytes), &pitch);
@@ -100,8 +114,9 @@ fn writeTexture() void {
     while (y < 32) : (y += 1) {
         var x: usize = 0;
         while (x < 64) : (x += 1) {
-            const random_pixel = rnd.random().boolean();
-            bytes.?[y * 64 + x] = if (random_pixel) 0xFFFFFFFF else 0x000000FF;
+            //const random_pixel = rnd.random().boolean();
+            //bytes.?[y * 64 + x] = if (random_pixel) 0xFFFFFFFF else 0x000000FF;
+            bytes.?[y * 64 + x] = if (emu.screen[y * 64 + x] == 1) 0xFFFFFFFF else 0x000000FF;
         }
     }
     c.SDL_UnlockTexture(texture);

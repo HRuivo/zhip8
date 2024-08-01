@@ -14,38 +14,61 @@ const Operation = union(enum) {
     Return,
     Clear,
     Jump: u16,
+    Call: u16,
+    SkipVxEqualNN: struct { index: u4, nn: u8 },
+    SkipVxNotEqualNN: struct { index: u4, nn: u8 },
+    SkipVxEqualVy: struct { index: u4, nn: u8 },
+    SkipVxNotEqualVy: struct { index: u4, nn: u8 },
+    SetRegister: struct { index: u4, nn: u8 },
+    Add: struct { index: u4, nn: u8 },
+    CopyRegister: struct { dest: u4, source: u4 },
+    SetI: u16,
+    Draw: u16,
+};
+
+const BitMask = enum(u16) {
+    MaskF000 = 0xF000,
+    Mask0F00 = 0x0F00,
+    Mask00F0 = 0x00F0,
+    Mask000F = 0x000F,
+    Mask00FF = 0x00FF,
+    Mask0FFF = 0x0FFF,
+
+    fn maskBits(op: u16, mask: BitMask) u16 {
+        return op & @intFromEnum(mask);
+    }
 };
 
 pc: u16 = START_ADDR,
 
-v: [NUM_REGS]u8 = undefined,
+stack: [STACK_SIZE]u16,
+sp: u16 = 0,
+
+v: [NUM_REGS]u8,
 i: u16 = 0,
 
 dt: u8 = 0,
 st: u8 = 0,
 
-stack: [STACK_SIZE]u16 = undefined,
-sp: u16 = 0,
-
-mem: [RAM_SIZE]u8 = undefined,
-
-screen: [SCREEN_WIDTH * SCREEN_HEIGHT]bool = undefined,
+mem: [RAM_SIZE]u8,
+screen: [SCREEN_WIDTH * SCREEN_HEIGHT]u8,
 
 pub fn reset(self: *@This()) void {
     self.pc = START_ADDR;
-    self.i = 0;
+    self.i = 0x0200 + 0x0026;
     self.sp = 0;
     self.dt = 0;
     self.st = 0;
-    for (0..self.v.len) |i| {
-        self.v[i] = 0x0;
+    for (&self.v) |*register| {
+        register.* = 0x00;
     }
-    for (0..self.mem.len) |i| {
-        self.mem[i] = 0x0;
+    for (&self.mem) |*register| {
+        register.* = 0x00;
     }
-    for (0..self.stack.len) |i| {
-        self.stack[i] = 0x0;
+    for (&self.stack) |*register| {
+        register.* = 0x00;
     }
+    self.clearScreen();
 }
 
 pub fn step(self: *@This()) void {
@@ -53,7 +76,7 @@ pub fn step(self: *@This()) void {
     self.execute(op);
 }
 
-fn tick_timers(self: *@This()) void {
+fn tickTimers(self: *@This()) void {
     if (self.dt > 0) {
         self.dt -= 1;
     }
@@ -67,24 +90,71 @@ fn tick_timers(self: *@This()) void {
 }
 
 fn fetch(self: *@This()) Operation {
-    const operation = decode(0x00E0);
+    const opcode: u16 = self.memRead2(self.pc);
+    const operation = decode(opcode);
     self.pc += 2;
     return operation;
 }
 
 fn decode(op: u16) Operation {
-    const x = (op & 0xF000) >> 12;
-    std.debug.print("op x: {X}\n", .{x});
+    const x: u4 = @truncate((op & 0xF000) >> 12);
+    const y: u4 = @truncate((op & 0x0F00) >> 8);
+    //const a = (op & 0x00F0) >> 4;
+    //const b = (op & 0x000F);
+    const nn: u8 = @truncate((op & 0x00FF));
 
     switch (x) {
         0x0 => {
             const yab = (op & 0x0FFF);
             switch (yab) {
+                // Nop
                 0x000 => return Operation.Nop,
+                // Clear Screen
                 0x0E0 => return Operation.Clear,
+                // Return
                 0x0EE => return Operation.Return,
                 else => unreachable,
             }
+        },
+        // Jump NNN
+        0x1 => {
+            return Operation{ .Jump = BitMask.maskBits(op, .Mask0FFF) };
+        },
+        // CALL NNN
+        0x2 => {
+            return Operation{ .Call = BitMask.maskBits(op, .Mask0FFF) };
+        },
+        // SKIP VX == NN
+        0x3 => {
+            return Operation{
+                .SkipVxEqualNN = .{
+                    .index = y,
+                    .nn = nn,
+                },
+            };
+        },
+        // SKIP VX != NN
+        0x4 => {
+            return Operation{
+                .SkipVxNotEqualNN = .{
+                    .index = y,
+                    .nn = nn,
+                },
+            };
+        },
+        // SKIP VX == VY
+        0x5 => {
+            return Operation{
+                .SkipVxEqualVy = .{
+                    .index = y,
+                    .nn = nn,
+                },
+            };
+        },
+        // DRAW
+        0xD => {
+            const nnn: u16 = op & 0x0FFF;
+            return Operation{ .Draw = nnn };
         },
         else => {
             std.debug.print("unimplemented op code\n", .{});
@@ -96,20 +166,98 @@ fn decode(op: u16) Operation {
 fn execute(self: *@This(), op: Operation) void {
     defer std.debug.print("\n", .{});
 
+    std.debug.print("PC: {X}\n", .{self.pc});
+
     switch (op) {
-        Operation.Nop => {
-            std.debug.print("Skipping...", .{});
-        },
+        Operation.Nop => {},
         Operation.Return => {
-            std.debug.print("Returning", .{});
+            const ret_addr = self.pop();
+            self.pc = ret_addr;
+            std.debug.print("Returning to: {X}", .{ret_addr});
         },
         Operation.Clear => {
-            std.debug.print("Clearing Screen", .{});
+            self.clearScreen();
         },
-        Operation.Jump => |code| {
-            _ = code;
+        Operation.Jump => |nnn| {
+            self.pc = nnn;
         },
-        //else => {},
+        Operation.Call => |nnn| {
+            self.push(self.pc);
+            self.pc = nnn;
+        },
+        Operation.SkipVxEqualNN => |data| {
+            if (self.v[data.index] == data.nn) {
+                self.pc += 2;
+            }
+        },
+        Operation.Draw => |nnn| {
+            std.debug.print("Drawing... {X}\n", .{nnn});
+            const x1: u4 = @truncate(BitMask.maskBits(nnn, .Mask0F00) >> 8);
+            const x2: u4 = @truncate(BitMask.maskBits(nnn, .Mask00F0) >> 4);
+            const x3: u4 = @truncate(BitMask.maskBits(nnn, .Mask000F));
+
+            const x_coord = self.v[x1];
+            const y_coord = self.v[x2];
+            const num_rows = x3;
+
+            var y: u8 = 0;
+            while (y < num_rows) : (y += 1) {
+                const spr: u8 = self.mem[self.i + y];
+
+                var x: u8 = 0;
+                while (x < 8) : (x += 1) {
+                    const v: u8 = 0x80;
+                    if ((spr & (v >> @truncate(x))) != 0) {
+                        const tX = (x_coord + x) % SCREEN_WIDTH;
+                        const tY = (y_coord + y) % SCREEN_HEIGHT;
+
+                        const idx = tX + tY * SCREEN_WIDTH;
+
+                        self.screen[idx] ^= 1;
+                        if (self.screen[idx] == 0) {
+                            self.v[0x0F] = 1;
+                        }
+                    }
+                }
+            }
+        },
+        else => {},
     }
-    _ = self;
+}
+
+pub fn memWrite(self: *@This(), address: u16, value: u8) void {
+    self.mem[address] = value;
+}
+
+pub fn memWrite2(self: *@This(), address: u16, value: u16) void {
+    const xy: u8 = @truncate((value & 0xFF00) >> 8);
+    const ab: u8 = @truncate((value & 0x00FF));
+    self.memWrite(address, xy);
+    self.memWrite(address + 0x0001, ab);
+}
+
+pub fn memRead(self: @This(), address: u16) u8 {
+    return self.mem[address];
+}
+
+pub fn memRead2(self: @This(), address: u16) u16 {
+    const opcode: u16 = @as(u16, (self.memRead(address))) << 8 | self.memRead(address + 1);
+    return opcode;
+}
+
+fn clearScreen(self: *@This()) void {
+    for (&self.screen) |*pixel| {
+        pixel.* = 0x00;
+    }
+}
+
+fn push(self: *@This(), value: u16) void {
+    self.stack[self.sp] = value;
+    self.sp += 1;
+}
+
+fn pop(self: *@This()) u16 {
+    if (self.sp == 0x0) return 0x0; // unreachable
+    self.sp -= 1;
+    return self.stack[self.sp];
 }
