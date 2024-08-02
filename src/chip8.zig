@@ -422,8 +422,32 @@ fn execute(self: *@This(), op: Operation) void {
                 self.pc += 2;
             }
         },
+        Operation.WaitKey => |index| {
+            var pressed: bool = false;
+            for (self.keys, 0..) |state, i| {
+                if (state) {
+                    self.v[index] = @intCast(i);
+                    pressed = true;
+                    break;
+                }
+            }
+        },
         Operation.VxDt => |index| {
             self.v[index] = self.dt;
+        },
+        Operation.DtVx => |index| {
+            self.dt = self.v[index];
+        },
+        Operation.StVx => |index| {
+            self.st = self.v[index];
+        },
+        Operation.IPlusVx => |index| {
+            const vx = self.v[index];
+            self.i = @addWithOverflow(self.i, vx)[0];
+        },
+        Operation.IFont => |index| {
+            const c = self.v[index];
+            self.i = c * 5;
         },
         Operation.Draw => |data| {
             const x_coord = self.v[data.x];
@@ -450,6 +474,18 @@ fn execute(self: *@This(), op: Operation) void {
                     }
                 }
             }
+        },
+        Operation.BCD => |index| {
+            //const vx: f16 = @floatFromInt(self.v[index]);
+            const vx = self.v[index];
+
+            const hundreds: u8 = std.math.divFloor(u8, vx, 100.0) catch 0;
+            const tens: u8 = std.math.mod(u8, std.math.divFloor(u8, vx, 10.0) catch 0, 10.0) catch 0;
+            const ones: u8 = std.math.mod(u8, vx, 10.0) catch 0;
+
+            self.mem[self.i] = hundreds;
+            self.mem[self.i + 1] = tens;
+            self.mem[self.i + 2] = ones;
         },
         else => {},
     }
