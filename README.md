@@ -15,8 +15,9 @@ zig build
 
 ### Running
 
-Simply do a build run
+Run with a ROM to be loading into memory.
 
 ```bash
-zig build run
+zig build run -- <ROM_NAME>
+zig build run -- TETRIS
 ```
