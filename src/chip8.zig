@@ -280,9 +280,26 @@ fn decode(op: u16) Operation {
                 },
             };
         },
-        else => {
-            std.debug.print("unimplemented op code\n", .{});
-            return Operation.Nop;
+        0xE => {
+            switch (nn) {
+                0x9E => return Operation{ .SkipKeyPress = y },
+                0xA1 => return Operation{ .SkipKeyRelease = y },
+                else => unreachable,
+            }
+        },
+        0xF => {
+            switch (nn) {
+                0x07 => return Operation{ .VxDt = y },
+                0x0A => return Operation{ .WaitKey = y },
+                0x15 => return Operation{ .DtVx = y },
+                0x18 => return Operation{ .StVx = y },
+                0x1E => return Operation{ .IPlusVx = y },
+                0x29 => return Operation{ .IFont = y },
+                0x33 => return Operation{ .BCD = y },
+                0x55 => return Operation{ .StoreV0MinusVx = y },
+                0x65 => return Operation{ .LoadV0MinusVx = y },
+                else => unreachable,
+            }
         },
     }
 }
