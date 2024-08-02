@@ -4,6 +4,7 @@ const RAM_SIZE: usize = 4096;
 const NUM_REGS: u8 = 16;
 const STACK_SIZE: u8 = 16;
 const NUM_KEYS: u8 = 16;
+const FONTSET_SIZE: u8 = 80;
 
 const START_ADDR: u16 = 0x200;
 
@@ -72,9 +73,34 @@ i: u16 = 0,
 dt: u8 = 0,
 st: u8 = 0,
 
+/// Memory Map
+///
+/// 0x000-0x1FF - Interpreter
+/// 0x050-0x0A0 = Used for 4x5 pixel font set
+/// 0x200-0xFFF = Program ROM & Working RAM
 mem: [RAM_SIZE]u8,
+
 screen: [SCREEN_WIDTH * SCREEN_HEIGHT]u8,
 keys: [NUM_KEYS]bool,
+
+const fontset = [_]u8{
+    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+    0x20, 0x60, 0x20, 0x20, 0x70, // 1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+    0xF0, 0x80, 0xF0, 0x80, 0x80, // F
+};
 
 pub fn reset(self: *@This()) void {
     self.pc = START_ADDR;
@@ -86,17 +112,53 @@ pub fn reset(self: *@This()) void {
     for (&self.v) |*register| {
         register.* = 0x00;
     }
+
     for (&self.mem) |*register| {
         register.* = 0x00;
     }
+
     for (&self.stack) |*register| {
         register.* = 0x00;
     }
+
     for (&self.keys) |*state| {
         state.* = false;
     }
 
+    for (fontset, 80..) |c, idx| {
+        std.debug.print("idx: {}", .{idx});
+        self.mem[idx] = c;
+    }
+
     self.clearScreen();
+}
+
+pub fn loadRom(self: *@This(), filename: []const u8) void {
+    var input_file = std.fs.cwd().openFile(filename, .{}) catch {
+        std.debug.print("failed to open rom file '{s}'.", .{filename});
+        return;
+    };
+    defer input_file.close();
+
+    std.debug.print("Loading ROM\n", .{});
+    const size = input_file.getEndPos() catch {
+        std.debug.print("failed to read rom end position.", .{});
+        return;
+    };
+
+    std.debug.print("ROM File Size {}\n", .{size});
+    var reader = input_file.reader();
+
+    var i: u32 = 0;
+    while (i < size) : (i += 1) {
+        self.mem[i + START_ADDR] = reader.readByte() catch {
+            std.debug.print("failed to read byte from rom file", .{});
+            return;
+        };
+        std.debug.print("{X}>", .{i + START_ADDR});
+    }
+
+    std.debug.print("ROM Loaded.\n", .{});
 }
 
 pub fn step(self: *@This()) void {
@@ -104,7 +166,7 @@ pub fn step(self: *@This()) void {
     self.execute(op);
 }
 
-fn tickTimers(self: *@This()) void {
+pub fn tickTimers(self: *@This()) void {
     if (self.dt > 0) {
         self.dt -= 1;
     }
@@ -312,16 +374,13 @@ fn decode(op: u16) Operation {
 }
 
 fn execute(self: *@This(), op: Operation) void {
-    defer std.debug.print("\n", .{});
-
-    std.debug.print("PC: {X}\n", .{self.pc});
+    //std.debug.print("PC: {X}\n", .{self.pc});
 
     switch (op) {
         Operation.Nop => {},
         Operation.Return => {
             const ret_addr = self.pop();
             self.pc = ret_addr;
-            std.debug.print("Returning to: {X}", .{ret_addr});
         },
         Operation.Clear => {
             self.clearScreen();
@@ -487,7 +546,21 @@ fn execute(self: *@This(), op: Operation) void {
             self.mem[self.i + 1] = tens;
             self.mem[self.i + 2] = ones;
         },
-        else => {},
+        Operation.StoreV0MinusVx => |index| {
+            const x = index;
+            const i = self.i;
+            for (0..(x + 1)) |idx| {
+                self.mem[i + idx] = self.v[idx];
+            }
+        },
+        Operation.LoadV0MinusVx => |index| {
+            const x = index;
+            const i = self.i;
+            for (0..(x + 1)) |idx| {
+                self.v[idx] = self.mem[i + idx];
+            }
+        },
+        else => unreachable,
     }
 }
 

@@ -15,42 +15,16 @@ pub fn main() !void {
     var cpu = try allocator.create(Emu);
     cpu.reset();
 
-    cpu.v[0] = 0;
-    cpu.v[1] = 0;
-    cpu.v[2] = 3;
-    cpu.v[4] = 4;
-    cpu.i = 0x0200 + 0x0020;
+    var arg_it = try std.process.argsWithAllocator(allocator);
+    _ = arg_it.skip();
 
-    cpu.memWrite2(0x0200 + 0x0000, 0x0000);
-    cpu.memWrite2(0x0200 + 0x0002, 0x0000);
-    cpu.memWrite2(0x0200 + 0x0004, 0x00E0);
-    cpu.memWrite2(0x0200 + 0x0006, 0xD116);
-    cpu.memWrite2(0x0200 + 0x0008, 0xD12E);
+    const filename: []const u8 = arg_it.next() orelse {
+        std.debug.print("No ROM file given.\n", .{});
+        return;
+    };
 
-    cpu.memWrite2(0x0200 + 0x000a, 0x0000);
-
-    cpu.memWrite2(0x0200 + 0x0020, 0xc3bd);
-    cpu.memWrite2(0x0200 + 0x0022, 0x8991);
-    cpu.memWrite2(0x0200 + 0x0024, 0xbdc3);
-
-    cpu.memWrite2(0x0200 + 0x0026, 0x3c7e);
-    cpu.memWrite2(0x0200 + 0x0028, 0x7e5a);
-    cpu.memWrite2(0x0200 + 0x002a, 0x7e3c);
-    cpu.memWrite2(0x0200 + 0x002c, 0x016f);
-    cpu.memWrite2(0x0200 + 0x002e, 0xf6ba);
-    cpu.memWrite2(0x0200 + 0x0030, 0xbca2);
-    cpu.memWrite2(0x0200 + 0x0032, 0x2200);
-
-    cpu.step();
-    cpu.step();
-    cpu.step();
-    cpu.step();
-    cpu.v[1] = 10;
-    cpu.v[2] = 10;
-    cpu.i = 0x0200 + 0x0026;
-    cpu.step();
-    cpu.step();
-    cpu.step();
+    std.debug.print("filename={s}\n", .{filename});
+    cpu.loadRom(filename);
 
     std.debug.print("Starting SDL2...\n", .{});
     if (c.SDL_Init(c.SDL_INIT_VIDEO) != 0) {
@@ -96,14 +70,14 @@ pub fn main() !void {
 
         _ = c.SDL_RenderClear(renderer);
 
+        for (0..10) |_| {
+            cpu.step();
+        }
+        cpu.tickTimers();
+
         writeTexture(cpu);
 
-        var dest = c.SDL_Rect{
-            .x = 0,
-            .y = 0,
-            .w = 512,
-            .h = 256,
-        };
+        var dest = c.SDL_Rect{ .x = 0, .y = 0, .w = 512, .h = 256 };
         _ = c.SDL_RenderCopy(renderer, texture, null, &dest);
         _ = c.SDL_RenderPresent(renderer);
 
