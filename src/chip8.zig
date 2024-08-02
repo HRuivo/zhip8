@@ -287,6 +287,44 @@ fn execute(self: *@This(), op: Operation) void {
                 self.pc += 2;
             }
         },
+        Operation.SkipVxNotEqualNN => |data| {
+            if (self.v[data.index] != data.nn) {
+                self.pc += 2;
+            }
+        },
+        Operation.SkipVxEqualVy => |data| {
+            if (self.v[data.dest] == self.v[data.source]) {
+                self.pc += 2;
+            }
+        },
+        Operation.VxNN => |data| {
+            self.v[data.index] = data.nn;
+        },
+        Operation.Add => |data| {
+            const a = self.v[data.index];
+            self.v[data.index] = @addWithOverflow(a, data.nn)[0];
+        },
+        Operation.VxVy => |data| {
+            self.v[data.dest] = self.v[data.source];
+        },
+        Operation.VxOrVy => |data| {
+            self.v[data.dest] |= self.v[data.source];
+        },
+        Operation.VxAndVy => |data| {
+            self.v[data.dest] &= self.v[data.source];
+        },
+        Operation.VxXorVy => |data| {
+            self.v[data.dest] ^= self.v[data.source];
+        },
+        Operation.VxAddVy => |data| {
+            const sum_result = @addWithOverflow(
+                self.v[data.dest],
+                self.v[data.source],
+            );
+            self.v[data.dest] = sum_result[0];
+            self.v[0xF] = sum_result[1];
+            std.debug.print("{} {}", .{ sum_result[0], sum_result[1] });
+        },
         Operation.Draw => |data| {
             const x_coord = self.v[data.x];
             const y_coord = self.v[data.y];

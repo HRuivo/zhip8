@@ -15,11 +15,12 @@ pub fn main() !void {
     var cpu = try allocator.create(Emu);
     cpu.reset();
 
-    cpu.v[1] = 0;
-    cpu.v[2] = 0;
+    cpu.v[0] = 0xFF;
+    cpu.v[1] = 0xFF;
+    cpu.v[2] = 3;
     cpu.i = 0x0200 + 0x0020;
 
-    cpu.memWrite2(0x0200 + 0x0000, 0x0000);
+    cpu.memWrite2(0x0200 + 0x0000, 0x8124);
     cpu.memWrite2(0x0200 + 0x0002, 0x0000);
     cpu.memWrite2(0x0200 + 0x0004, 0x00E0);
     cpu.memWrite2(0x0200 + 0x0006, 0xD126);
