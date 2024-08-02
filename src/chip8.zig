@@ -332,6 +332,16 @@ fn execute(self: *@This(), op: Operation) void {
             self.v[data.dest] = sub_result[0];
             self.v[0xF] = sub_result[1];
         },
+        Operation.VxRightShift => |index| {
+            const lsb = self.v[index] & 1;
+            self.v[index] >>= 1;
+            self.v[0xF] = lsb;
+        },
+        Operation.VxLeftShift => |index| {
+            const msb = (self.v[index] >> 7) & 1;
+            self.v[index] <<= 1;
+            self.v[0xF] = msb;
+        },
         Operation.Draw => |data| {
             const x_coord = self.v[data.x];
             const y_coord = self.v[data.y];
