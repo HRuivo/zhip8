@@ -3,6 +3,7 @@ const std = @import("std");
 const RAM_SIZE: usize = 4096;
 const NUM_REGS: u8 = 16;
 const STACK_SIZE: u8 = 16;
+const NUM_KEYS: u8 = 16;
 
 const START_ADDR: u16 = 0x200;
 
@@ -73,13 +74,15 @@ st: u8 = 0,
 
 mem: [RAM_SIZE]u8,
 screen: [SCREEN_WIDTH * SCREEN_HEIGHT]u8,
+keys: [NUM_KEYS]bool,
 
 pub fn reset(self: *@This()) void {
     self.pc = START_ADDR;
-    self.i = 0x0200 + 0x0026;
+    self.i = 0; // 0x0200 + 0x0026;
     self.sp = 0;
     self.dt = 0;
     self.st = 0;
+
     for (&self.v) |*register| {
         register.* = 0x00;
     }
@@ -89,6 +92,10 @@ pub fn reset(self: *@This()) void {
     for (&self.stack) |*register| {
         register.* = 0x00;
     }
+    for (&self.keys) |*state| {
+        state.* = false;
+    }
+
     self.clearScreen();
 }
 
@@ -400,6 +407,23 @@ fn execute(self: *@This(), op: Operation) void {
         Operation.VxRandAndNN => |data| {
             const rng = 0;
             self.v[data.index] = rng & data.nn;
+        },
+        Operation.SkipKeyPress => |index| {
+            const vx = self.v[index];
+            const key = self.keys[vx];
+            if (key) {
+                self.pc += 2;
+            }
+        },
+        Operation.SkipKeyRelease => |index| {
+            const vx = self.v[index];
+            const key = self.keys[vx];
+            if (!key) {
+                self.pc += 2;
+            }
+        },
+        Operation.VxDt => |index| {
+            self.v[index] = self.dt;
         },
         Operation.Draw => |data| {
             const x_coord = self.v[data.x];
