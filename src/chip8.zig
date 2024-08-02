@@ -34,6 +34,17 @@ const Operation = union(enum) {
     JumpV0PlusNNN: u16,
     VxRandAndNN: struct { index: u4, nn: u8 },
     Draw: struct { x: u4, y: u4, height: u4 },
+    SkipKeyPress: u4,
+    SkipKeyRelease: u4,
+    VxDt: u4,
+    WaitKey: u4,
+    DtVx: u4,
+    StVx: u4,
+    IPlusVx: u4,
+    IFont: u4,
+    BCD: u4,
+    StoreV0MinusVx: u4,
+    LoadV0MinusVx: u4,
 };
 
 const BitMask = enum(u16) {
@@ -243,6 +254,22 @@ fn decode(op: u16) Operation {
                 .SkipVxNotEqualVy = .{ .dest = y, .source = a },
             };
         },
+        0xA => {
+            return Operation{
+                .SetI = BitMask.maskBits(op, .Mask0FFF),
+            };
+        },
+        0xB => {
+            return Operation{
+                .JumpV0PlusNNN = BitMask.maskBits(op, .Mask0FFF),
+            };
+        },
+        0xC => {
+            return Operation{ .VxRandAndNN = .{
+                .index = y,
+                .nn = nn,
+            } };
+        },
         // DRAW
         0xD => {
             return Operation{
@@ -297,6 +324,11 @@ fn execute(self: *@This(), op: Operation) void {
                 self.pc += 2;
             }
         },
+        Operation.SkipVxNotEqualVy => |data| {
+            if (self.v[data.dest] != self.v[data.source]) {
+                self.pc += 2;
+            }
+        },
         Operation.VxNN => |data| {
             self.v[data.index] = data.nn;
         },
@@ -341,6 +373,16 @@ fn execute(self: *@This(), op: Operation) void {
             const msb = (self.v[index] >> 7) & 1;
             self.v[index] <<= 1;
             self.v[0xF] = msb;
+        },
+        Operation.SetI => |nnn| {
+            self.i = nnn;
+        },
+        Operation.JumpV0PlusNNN => |nnn| {
+            self.pc = (self.v[0]) + nnn;
+        },
+        Operation.VxRandAndNN => |data| {
+            const rng = 0;
+            self.v[data.index] = rng & data.nn;
         },
         Operation.Draw => |data| {
             const x_coord = self.v[data.x];
