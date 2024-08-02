@@ -21,3 +21,7 @@ Run with a ROM to be loading into memory.
 zig build run -- <ROM_NAME>
 zig build run -- TETRIS
 ```
+### TODO
+
+- Error handling
+- Stack Overflow handling
