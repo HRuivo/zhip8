@@ -323,7 +323,14 @@ fn execute(self: *@This(), op: Operation) void {
             );
             self.v[data.dest] = sum_result[0];
             self.v[0xF] = sum_result[1];
-            std.debug.print("{} {}", .{ sum_result[0], sum_result[1] });
+        },
+        Operation.VxSubVy => |data| {
+            const sub_result = @subWithOverflow(
+                self.v[data.dest],
+                self.v[data.source],
+            );
+            self.v[data.dest] = sub_result[0];
+            self.v[0xF] = sub_result[1];
         },
         Operation.Draw => |data| {
             const x_coord = self.v[data.x];
