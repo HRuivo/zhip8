@@ -63,6 +63,13 @@ pub fn main() !void {
                     if (event.key.keysym.scancode == c.SDL_SCANCODE_ESCAPE) {
                         quit = true;
                     }
+
+                    const key_code: u8 = keyToButton(event.key.keysym.scancode);
+                    cpu.keyPress(key_code, true);
+                },
+                c.SDL_KEYUP => {
+                    const key_code: u8 = keyToButton(event.key.keysym.scancode);
+                    cpu.keyPress(key_code, false);
                 },
                 else => {},
             }
@@ -100,4 +107,29 @@ fn writeTexture(emu: *Emu) void {
         }
     }
     c.SDL_UnlockTexture(texture);
+}
+
+fn keyToButton(key: c_uint) u8 {
+    return switch (key) {
+        c.SDL_SCANCODE_1 => 0x1,
+        c.SDL_SCANCODE_2 => 0x2,
+        c.SDL_SCANCODE_3 => 0x3,
+        c.SDL_SCANCODE_4 => 0xC,
+
+        c.SDL_SCANCODE_Q => 0x4,
+        c.SDL_SCANCODE_W => 0x5,
+        c.SDL_SCANCODE_E => 0x6,
+        c.SDL_SCANCODE_R => 0xD,
+
+        c.SDL_SCANCODE_A => 0x7,
+        c.SDL_SCANCODE_S => 0x8,
+        c.SDL_SCANCODE_D => 0x9,
+        c.SDL_SCANCODE_F => 0xE,
+
+        c.SDL_SCANCODE_Z => 0xA,
+        c.SDL_SCANCODE_X => 0x0,
+        c.SDL_SCANCODE_C => 0xB,
+        c.SDL_SCANCODE_V => 0xF,
+        else => 0x0,
+    };
 }
