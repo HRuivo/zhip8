@@ -25,3 +25,6 @@ zig build run -- TETRIS
 
 - Error handling
 - Stack Overflow handling
+- Graphics Abstraction Layer
+- Input handling
+
