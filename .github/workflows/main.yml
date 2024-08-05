@@ -2,7 +2,7 @@ name: Test CPU Operations
 
 on:
   push:
-    branches: [master, main, dev]
+    branches: [master, main]
   pull_request:
     branches: [master, main]
 
