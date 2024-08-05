@@ -656,13 +656,28 @@ test "Jump" {
     try std.testing.expect(chip.pc == 0x0333);
 }
 
-test "Add" {}
+test "Add" {
+    var chip: Emu = .{};
+    chip.reset();
+
+    const register: u8 = 0;
+    chip.v[register] = 0x0005;
+    chip.memWrite2(START_ADDR, 0x7005);
+
+    chip.step();
+
+    try std.testing.expect(chip.v[register] == 0x000A);
+}
 
 test "Set I Register" {
     var chip: Emu = .{};
     chip.reset();
 
+    chip.memWrite2(START_ADDR, 0xAFAB);
+
     chip.step();
+
+    try std.testing.expect(chip.i == 0x0FAB);
 }
 
 // Return,
