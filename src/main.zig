@@ -137,7 +137,3 @@ fn keyToButton(key: c_uint) u8 {
 test "always_succeeds" {
     try std.testing.expect(true);
 }
-
-test "always_fails" {
-    try std.testing.expect(false);
-}
