@@ -645,7 +645,20 @@ test "call" {
     try std.testing.expect(chip.pc == 0x0345);
 }
 
-test "Jump" {
+test "return" {
+    var chip: Emu = .{};
+    chip.reset();
+
+    chip.memWrite2(START_ADDR, 0x00EE);
+    const return_addr: u16 = 0x0333;
+    chip.push(return_addr);
+
+    chip.step();
+
+    try std.testing.expect(chip.pc == return_addr);
+}
+
+test "jump" {
     var chip: Emu = .{};
     chip.reset();
 
@@ -656,7 +669,7 @@ test "Jump" {
     try std.testing.expect(chip.pc == 0x0333);
 }
 
-test "Add" {
+test "add" {
     var chip: Emu = .{};
     chip.reset();
 
@@ -669,7 +682,7 @@ test "Add" {
     try std.testing.expect(chip.v[register] == 0x000A);
 }
 
-test "Set I Register" {
+test "set I register" {
     var chip: Emu = .{};
     chip.reset();
 
@@ -681,13 +694,11 @@ test "Set I Register" {
 }
 
 // Return,
-// Jump: u16,
 // SkipVxEqualNN: struct { index: u4, nn: u8 },
 // SkipVxNotEqualNN: struct { index: u4, nn: u8 },
 // SkipVxEqualVy: struct { dest: u4, source: u4 },
 // SkipVxNotEqualVy: struct { dest: u4, source: u4 },
 // VxNN: struct { index: u4, nn: u8 },
-// Add: struct { index: u4, nn: u8 },
 // VxVy: struct { dest: u4, source: u4 },
 // VxOrVy: struct { dest: u4, source: u4 },
 // VxAndVy: struct { dest: u4, source: u4 },
@@ -697,7 +708,6 @@ test "Set I Register" {
 // VxRightShift: u4,
 // VxLeftShift: u4,
 // VySubVx: struct { dest: u4, source: u4 },
-// SetI: u16,
 // JumpV0PlusNNN: u16,
 // VxRandAndNN: struct { index: u4, nn: u8 },
 // Draw: struct { x: u4, y: u4, height: u4 },
