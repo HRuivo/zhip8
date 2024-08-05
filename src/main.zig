@@ -2,7 +2,7 @@ const c = @cImport({
     @cInclude("SDL2/SDL.h");
 });
 const std = @import("std");
-const Emu = @import("chip8.zig");
+const Emu = @import("chip8.zig").Emu;
 
 var texture: ?*c.SDL_Texture = null;
 var rnd = std.Random.DefaultPrng.init(64);
@@ -12,8 +12,8 @@ pub fn main() !void {
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    var cpu = try allocator.create(Emu);
-    cpu.reset();
+    var chip8 = try allocator.create(Emu);
+    chip8.reset();
 
     var arg_it = try std.process.argsWithAllocator(allocator);
     _ = arg_it.skip();
@@ -24,7 +24,7 @@ pub fn main() !void {
     };
 
     std.debug.print("filename={s}\n", .{filename});
-    cpu.loadRom(filename);
+    chip8.loadRom(filename);
 
     std.debug.print("Starting SDL2...\n", .{});
     if (c.SDL_Init(c.SDL_INIT_VIDEO) != 0) {
@@ -65,11 +65,11 @@ pub fn main() !void {
                     }
 
                     const key_code: u8 = keyToButton(event.key.keysym.scancode);
-                    cpu.keyPress(key_code, true);
+                    chip8.keyPress(key_code, true);
                 },
                 c.SDL_KEYUP => {
                     const key_code: u8 = keyToButton(event.key.keysym.scancode);
-                    cpu.keyPress(key_code, false);
+                    chip8.keyPress(key_code, false);
                 },
                 else => {},
             }
@@ -78,11 +78,11 @@ pub fn main() !void {
         _ = c.SDL_RenderClear(renderer);
 
         for (0..10) |_| {
-            cpu.step();
+            chip8.step();
         }
-        cpu.tickTimers();
+        chip8.tickTimers();
 
-        writeTexture(cpu);
+        writeTexture(chip8);
 
         var dest = c.SDL_Rect{ .x = 0, .y = 0, .w = 512, .h = 256 };
         _ = c.SDL_RenderCopy(renderer, texture, null, &dest);
@@ -132,8 +132,4 @@ fn keyToButton(key: c_uint) u8 {
         c.SDL_SCANCODE_V => 0xF,
         else => 0x0,
     };
-}
-
-test "always_succeeds" {
-    try std.testing.expect(true);
 }
