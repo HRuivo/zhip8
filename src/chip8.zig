@@ -126,7 +126,6 @@ pub fn reset(self: *@This()) void {
     }
 
     for (fontset, 80..) |c, idx| {
-        std.debug.print("idx: {}", .{idx});
         self.mem[idx] = c;
     }
 
@@ -155,7 +154,6 @@ pub fn loadRom(self: *@This(), filename: []const u8) void {
             std.debug.print("failed to read byte from rom file", .{});
             return;
         };
-        std.debug.print("{X}>", .{i + START_ADDR});
     }
 
     std.debug.print("ROM Loaded.\n", .{});
@@ -599,4 +597,10 @@ fn pop(self: *@This()) u16 {
     if (self.sp == 0x0) return 0x0; // unreachable
     self.sp -= 1;
     return self.stack[self.sp];
+}
+
+pub fn keyPress(self: *@This(), key_index: u8, pressed: bool) void {
+    if (key_index < self.keys.len) {
+        self.keys[key_index] = pressed;
+    }
 }
