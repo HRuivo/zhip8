@@ -2,7 +2,7 @@ name: Test CPU Operations
 
 on:
   push:
-    branches: [master, main, dev]
+    branches: [master, main]
   pull_request:
     branches: [master, main]
 
@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@main
-      - run: echo "Hello, World!"
+      - run: echo "Running CHIP-8 Operation Tests..."
       - uses: goto-bus-stop/setup-zig@v2.2.0
         with:
           # Version of the zig compiler to use (must be 0.3.0 or up)

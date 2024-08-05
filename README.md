@@ -1,6 +1,9 @@
 # zhip8
 Chip-8 Emulator in Zig and SDL2.
 
+## Status
+![CHIP-8 Operations](https://github.com/HRuivo/zhip8/actions/workflows/main.yml/badge.svg)
+
 ## Installation
 
 ### From Source
