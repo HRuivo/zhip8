@@ -1,0 +1,18 @@
+name: Test CPU Operations
+
+on:
+  push:
+    branches: [master, main, dev]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@latest
+      - run: echo "Hello, World!"
+      - run: zig build test
+      
+    
