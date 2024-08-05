@@ -84,10 +84,10 @@ const fontset = [_]u8{
 pub const Emu = struct {
     pc: u16 = START_ADDR,
 
-    stack: [STACK_SIZE]u16,
+    stack: [STACK_SIZE]u16 = undefined,
     sp: u16 = 0,
 
-    v: [NUM_REGS]u8,
+    v: [NUM_REGS]u8 = undefined,
     i: u16 = 0,
 
     dt: u8 = 0,
@@ -98,10 +98,10 @@ pub const Emu = struct {
     /// 0x000-0x1FF - Interpreter
     /// 0x050-0x0A0 = Used for 4x5 pixel font set
     /// 0x200-0xFFF = Program ROM & Working RAM
-    mem: [RAM_SIZE]u8,
+    mem: [RAM_SIZE]u8 = undefined,
 
-    screen: [SCREEN_WIDTH * SCREEN_HEIGHT]u8,
-    keys: [NUM_KEYS]bool,
+    screen: [SCREEN_WIDTH * SCREEN_HEIGHT]u8 = undefined,
+    keys: [NUM_KEYS]bool = undefined,
 
     pub fn reset(self: *@This()) void {
         self.pc = START_ADDR;
@@ -607,8 +607,40 @@ pub const Emu = struct {
     }
 };
 
-test "nop" {}
+test "nop" {
+    var chip: Emu = .{};
+    chip.reset();
+    chip.memWrite2(START_ADDR + 0x0000, 0x0000);
 
-test "clear_screen" {}
+    chip.step();
 
-test "call" {}
+    try std.testing.expect(chip.pc == START_ADDR + 0x0002);
+}
+
+test "clear_screen" {
+    var chip: Emu = .{};
+    chip.reset();
+
+    chip.memWrite2(START_ADDR + 0x0000, 0xD001);
+    chip.memWrite2(START_ADDR + 0x0000, 0x00E0);
+
+    const gfx_start_addr = START_ADDR + 0x010;
+    chip.memWrite2(gfx_start_addr, 0x9090);
+    chip.i = START_ADDR + gfx_start_addr;
+
+    chip.step();
+    chip.step();
+
+    try std.testing.expect(chip.screen[0] == 0x0);
+}
+
+test "call" {
+    var chip: Emu = .{};
+    chip.reset();
+
+    chip.memWrite2(START_ADDR, 0x2345);
+
+    chip.step();
+
+    try std.testing.expect(chip.pc == 0x0345);
+}
