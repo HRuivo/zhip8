@@ -3,6 +3,7 @@ const c = @cImport({
 });
 const std = @import("std");
 const Emu = @import("chip8.zig").Emu;
+const Renderer = @import("renderer.zig").Renderer;
 
 var texture: ?*c.SDL_Texture = null;
 var rnd = std.Random.DefaultPrng.init(64);
@@ -26,30 +27,17 @@ pub fn main() !void {
     std.debug.print("filename={s}\n", .{filename});
     chip8.loadRom(filename);
 
-    std.debug.print("Starting SDL2...\n", .{});
-    if (c.SDL_Init(c.SDL_INIT_VIDEO) != 0) {
-        c.SDL_Log("Unable to initialize SDL: %s", c.SDL_GetError());
-        return error.SDLInitializationFailed;
-    }
-    defer c.SDL_Quit();
-
-    const screen = c.SDL_CreateWindow("Zhip8 Emu", c.SDL_WINDOWPOS_UNDEFINED, c.SDL_WINDOWPOS_UNDEFINED, 512, 256, c.SDL_WINDOW_OPENGL) orelse {
-        c.SDL_Log("Unable to create window: %s", c.SDL_GetError());
-        return error.SDLInitializationFailed;
+    var renderer: Renderer = Renderer.init(
+        "Zhip8 _ Chip-8 Emulation",
+        64,
+        32,
+        0,
+    ) catch {
+        std.debug.print("Failed to initialize renderer.\n", .{});
+        return;
     };
-    defer c.SDL_DestroyWindow(screen);
-
-    const renderer = c.SDL_CreateRenderer(screen, -1, 0) orelse {
-        c.SDL_Log("Unable to create renderer: %s", c.SDL_GetError());
-        return error.SDLInitializationFailed;
-    };
-    defer c.SDL_DestroyRenderer(renderer);
-
-    texture = c.SDL_CreateTexture(renderer, c.SDL_PIXELFORMAT_RGBA8888, c.SDL_TEXTUREACCESS_STREAMING, 64, 32) orelse {
-        c.SDL_Log("Failed to create a texture: %s", c.SDL_GetError());
-        return error.SDLInitializationFailed;
-    };
-    defer c.SDL_DestroyTexture(texture);
+    c.SDL_Delay(2000);
+    defer renderer.deinit();
 
     var quit = false;
     while (!quit) {
@@ -63,50 +51,42 @@ pub fn main() !void {
                     if (event.key.keysym.scancode == c.SDL_SCANCODE_ESCAPE) {
                         quit = true;
                     }
-
-                    const key_code: u8 = keyToButton(event.key.keysym.scancode);
-                    chip8.keyPress(key_code, true);
-                },
-                c.SDL_KEYUP => {
-                    const key_code: u8 = keyToButton(event.key.keysym.scancode);
-                    chip8.keyPress(key_code, false);
                 },
                 else => {},
             }
         }
-
-        _ = c.SDL_RenderClear(renderer);
 
         for (0..10) |_| {
             chip8.step();
         }
         chip8.tickTimers();
 
-        writeTexture(chip8);
-
-        var dest = c.SDL_Rect{ .x = 0, .y = 0, .w = 512, .h = 256 };
-        _ = c.SDL_RenderCopy(renderer, texture, null, &dest);
-        _ = c.SDL_RenderPresent(renderer);
-
-        c.SDL_Delay(17);
+        renderer.present(&chip8.screen);
     }
-}
 
-fn writeTexture(emu: *Emu) void {
-    var bytes: ?[*]u32 = null;
-    var pitch: c_int = 0;
-    _ = c.SDL_LockTexture(texture, null, @ptrCast(&bytes), &pitch);
+    // var quit = false;
+    // while (!quit) {
+    //     var event: c.SDL_Event = undefined;
+    //     while (c.SDL_PollEvent(&event) != 0) {
+    //         switch (event.type) {
+    //             c.SDL_QUIT => {
+    //                 quit = true;
+    //             },
+    //             c.SDL_KEYDOWN => {
+    //                 if (event.key.keysym.scancode == c.SDL_SCANCODE_ESCAPE) {
+    //                     quit = true;
+    //                 }
 
-    var y: usize = 0;
-    while (y < 32) : (y += 1) {
-        var x: usize = 0;
-        while (x < 64) : (x += 1) {
-            //const random_pixel = rnd.random().boolean();
-            //bytes.?[y * 64 + x] = if (random_pixel) 0xFFFFFFFF else 0x000000FF;
-            bytes.?[y * 64 + x] = if (emu.screen[y * 64 + x] == 1) 0xFFFFFFFF else 0x000000FF;
-        }
-    }
-    c.SDL_UnlockTexture(texture);
+    //                 const key_code: u8 = keyToButton(event.key.keysym.scancode);
+    //                 chip8.keyPress(key_code, true);
+    //             },
+    //             c.SDL_KEYUP => {
+    //                 const key_code: u8 = keyToButton(event.key.keysym.scancode);
+    //                 chip8.keyPress(key_code, false);
+    //             },
+    //             else => {},
+    //         }
+    //     }
 }
 
 fn keyToButton(key: c_uint) u8 {

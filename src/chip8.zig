@@ -693,7 +693,6 @@ test "set I register" {
     try std.testing.expect(chip.i == 0x0FAB);
 }
 
-// Return,
 // SkipVxEqualNN: struct { index: u4, nn: u8 },
 // SkipVxNotEqualNN: struct { index: u4, nn: u8 },
 // SkipVxEqualVy: struct { dest: u4, source: u4 },
